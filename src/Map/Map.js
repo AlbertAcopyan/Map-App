@@ -1,5 +1,5 @@
 import ReactDOM from "react-dom";
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-loader-syntax
 import {
   createUserWithEmailAndPassword,
@@ -59,8 +59,7 @@ const Map = () => {
       ),
     []
   );
-
-  const saveNewPlace = async () => {
+  const saveNewPlace = useCallback(async () => {
     console.log(
       "coord:",
       placeCoordinates,
@@ -81,23 +80,10 @@ const Map = () => {
     } else {
       console.log(123321);
     }
-  };
+  }, [placeCoordinates, placeAddress, placeName]);
 
-  useEffect(() => {
-    if (map.current) return;
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v11",
-      center: [lng, lat],
-      zoom: zoom,
-    });
-    const geocoder = new MapboxGeocoder({
-      accessToken: mapboxgl.accessToken,
-      mapboxgl: mapboxgl,
-    });
-    map.current.addControl(geocoder);
-
-    map.current.on("click", (e) => {
+  const handleMapClick = useCallback(
+    (e) => {
       const coordinates = e.lngLat;
 
       console.log("Lng:", coordinates.lng, "Lat:", coordinates.lat);
@@ -121,8 +107,29 @@ const Map = () => {
         .then((data) => {
           setPlaceAddress(data.features[0]?.place_name);
         });
+    },
+    [saveNewPlace]
+  );
+
+  useEffect(() => {
+    if (map.current) return;
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: "mapbox://styles/mapbox/streets-v11",
+      center: [lng, lat],
+      zoom: zoom,
     });
+    const geocoder = new MapboxGeocoder({
+      accessToken: mapboxgl.accessToken,
+      mapboxgl: mapboxgl,
+    });
+    map.current.addControl(geocoder);
   }, []);
+
+  useEffect(() => {
+    map.current.off("click");
+    map.current.on("click", handleMapClick);
+  }, [handleMapClick])
 
   useEffect(() => {
     places?.forEach((place) => {
