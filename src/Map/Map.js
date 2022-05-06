@@ -1,3 +1,4 @@
+import ReactDOM from "react-dom";
 import React, { useRef, useEffect, useState } from "react";
 import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-loader-syntax
 import {
@@ -25,6 +26,8 @@ import {
 import { DataGrid } from "@mui/x-data-grid";
 import { auth, firestoreDB } from "../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
+
+const PopupTest = () => <Button>ASDASDA</Button>;
 
 mapboxgl.accessToken =
   "pk.eyJ1IjoiYWxiZXJ0LWFrbyIsImEiOiJjbDJhaHAwN2gwMnh5M2RudGd1ZXZ6bDhoIn0.yCMpYUspDHGGR8hpTkBnog";
@@ -54,6 +57,7 @@ const Map = () => {
   const [coordinatesPicked, setCoordinatesPicked] = useState(null);
   const [placeName, setPlaceName] = useState(null);
   const inputValue = useRef(null);
+  const popUpRef = useRef(new mapboxgl.Popup({ offset: 15 }));
 
   useEffect(
     () =>
@@ -76,7 +80,21 @@ const Map = () => {
       mapboxgl: mapboxgl,
     });
     map.current.addControl(geocoder);
-  });
+
+    map.current.on("click", (e) => {
+      const popupNode = document.createElement("div");
+
+      ReactDOM.render(
+        <PopupTest />,
+        popupNode
+      );
+
+      popUpRef.current
+        .setLngLat(e.lngLat)
+        .setDOMContent(popupNode)
+        .addTo(map.current);
+    });
+  }, []);
 
   useEffect(() => {
     places?.forEach((place) => {
@@ -109,26 +127,26 @@ const Map = () => {
 
   const marker = new mapboxgl.Marker();
 
-  const addMarker = (event) => {
-    const coordinates = event.lngLat;
+  // const addMarker = (event) => {
+  //   const coordinates = event.lngLat;
 
-    console.log("Lng:", coordinates.lng, "Lat:", coordinates.lat);
-    marker.setLngLat(coordinates).addTo(map.current);
-    new mapboxgl.Popup()
-      .setLngLat(coordinates)
-      .setHTML(
-        `<input class="inputPlace" />
-        <button class="onBtn">ok</button>
-        <button>no</button>
-      `
-      )
-      .addTo(map.current);
-  };
+  //   console.log("Lng:", coordinates.lng, "Lat:", coordinates.lat);
+  //   marker.setLngLat(coordinates).addTo(map.current);
+  //   new mapboxgl.Popup()
+  //     .setLngLat(coordinates)
+  //     .setHTML(
+  //       `<input class="inputPlace" />
+  //       <button class="onBtn">ok</button>
+  //       <button>no</button>
+  //     `
+  //     )
+  //     .addTo(map.current);
+  // };
 
-  useEffect(() => {
-    if (!map.current) return;
-    map.current.on("click", (e) => addMarker(e));
-  }, []);
+  // useEffect(() => {
+  //   if (!map.current) return;
+  //   // map.current.on("click", (e) => addMarker(e));
+  // }, []);
 
   const handleLoginTab = () => {
     setTab("login");
