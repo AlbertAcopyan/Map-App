@@ -13,24 +13,17 @@ import "react-map-gl-geocoder/dist/mapbox-gl-geocoder.css";
 import Stack from "@mui/material/Stack";
 import MenuIcon from "@mui/icons-material/Menu";
 import PersonIcon from "@mui/icons-material/Person";
-import Popover from "@mui/material/Popover";
 import Popup from "../components/Popup";
-import {
-  Box,
-  Button,
-  CardActions,
-  CardContent,
-  Input,
-  Typography,
-} from "@mui/material";
+import { Box, Button, CardActions, CardContent, Input } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { auth, firestoreDB } from "../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
+import FormMap from "../components/FormMap";
+import { fetchText } from "../services";
 
-const PopupTest = () => <Button>ASDASDA</Button>;
+import { doc, setDoc } from "firebase/firestore";
 
-mapboxgl.accessToken =
-  "pk.eyJ1IjoiYWxiZXJ0LWFrbyIsImEiOiJjbDJhaHAwN2gwMnh5M2RudGd1ZXZ6bDhoIn0.yCMpYUspDHGGR8hpTkBnog";
+mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
 const columns = [
   { field: "name", headerName: "Name", width: 130 },
@@ -54,9 +47,9 @@ const Map = () => {
   const [user, setUser] = useState(null);
   const [errorMessage, setErrorMessage] = useState(false);
   const [places, setPlaces] = useState(null);
-  const [coordinatesPicked, setCoordinatesPicked] = useState(null);
+  const [placeAddress, setPlaceAddress] = useState(null);
   const [placeName, setPlaceName] = useState(null);
-  const inputValue = useRef(null);
+  const [placeCoordinates, setPlaceCoordinates] = useState(null);
   const popUpRef = useRef(new mapboxgl.Popup({ offset: 15 }));
 
   useEffect(
@@ -66,6 +59,29 @@ const Map = () => {
       ),
     []
   );
+
+  const saveNewPlace = async () => {
+    console.log(
+      "coord:",
+      placeCoordinates,
+      "address:",
+      placeAddress,
+      "name:",
+      placeName
+    );
+    if (placeCoordinates && placeAddress && placeName) {
+      await setDoc(doc(firestoreDB, "places", `${Math.random() * 10}`), {
+        address: placeAddress,
+        coordinates: `${placeCoordinates[0]}, ${placeCoordinates[1]}`,
+        id: `${Math.random() * 10}`,
+        lat: placeCoordinates[1],
+        lng: placeCoordinates[0],
+        name: placeName,
+      });
+    } else {
+      console.log(123321);
+    }
+  };
 
   useEffect(() => {
     if (map.current) return;
@@ -82,10 +98,14 @@ const Map = () => {
     map.current.addControl(geocoder);
 
     map.current.on("click", (e) => {
+      const coordinates = e.lngLat;
+
+      console.log("Lng:", coordinates.lng, "Lat:", coordinates.lat);
+      setPlaceCoordinates([coordinates.lng, coordinates.lat]);
       const popupNode = document.createElement("div");
 
       ReactDOM.render(
-        <PopupTest />,
+        <FormMap saveNewPlace={saveNewPlace} setPlaceName={setPlaceName} />,
         popupNode
       );
 
@@ -93,6 +113,14 @@ const Map = () => {
         .setLngLat(e.lngLat)
         .setDOMContent(popupNode)
         .addTo(map.current);
+
+      fetchText(coordinates.lng, coordinates.lat)
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          setPlaceAddress(data.features[0]?.place_name);
+        });
     });
   }, []);
 
@@ -113,40 +141,15 @@ const Map = () => {
     });
   });
 
-  const handlePlaceName = (e) => {
-    setPlaceName(e.target.value);
-  };
-
   useEffect(() => {
+    console.log(placeCoordinates);
     console.log(placeName);
-  }, [placeName]);
+    console.log(placeAddress);
+  }, [placeCoordinates, placeAddress, placeName]);
 
   const handleClickName = () => {
     console.log("jhyubuynu");
   };
-
-  const marker = new mapboxgl.Marker();
-
-  // const addMarker = (event) => {
-  //   const coordinates = event.lngLat;
-
-  //   console.log("Lng:", coordinates.lng, "Lat:", coordinates.lat);
-  //   marker.setLngLat(coordinates).addTo(map.current);
-  //   new mapboxgl.Popup()
-  //     .setLngLat(coordinates)
-  //     .setHTML(
-  //       `<input class="inputPlace" />
-  //       <button class="onBtn">ok</button>
-  //       <button>no</button>
-  //     `
-  //     )
-  //     .addTo(map.current);
-  // };
-
-  // useEffect(() => {
-  //   if (!map.current) return;
-  //   // map.current.on("click", (e) => addMarker(e));
-  // }, []);
 
   const handleLoginTab = () => {
     setTab("login");
