@@ -1,13 +1,12 @@
-import "./App.css";
 import Map from "./Map/Map";
 import "mapbox-gl/dist/mapbox-gl.css";
-// import "react-map-gl-geocoder/dist/mapbox-gl-geocoder.css";
+import { Box } from "@mui/material";
 
 function App() {
   return (
-    <div className="App">
+    <Box>
       <Map />
-    </div>
+    </Box>
   );
 }
 

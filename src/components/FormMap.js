@@ -5,7 +5,6 @@ const FormMap = ({ setPlaceName, saveNewPlace }) => {
   const [name, setName] = useState("");
 
   useEffect(() => {
-    console.log(name);
     setPlaceName(name);
   }, [name]);
 
