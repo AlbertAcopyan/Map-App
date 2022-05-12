@@ -1,3 +1,4 @@
+import DeleteIcon from "@mui/icons-material/Delete";
 import MenuIcon from "@mui/icons-material/Menu";
 import { Box, Button, Input } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
@@ -6,7 +7,6 @@ import React, { useEffect, useState } from "react";
 import { columns } from "../data";
 import { firestoreDB } from "../firebase";
 import Popup from "./Popup";
-import DeleteIcon from "@mui/icons-material/Delete";
 
 const Database = ({ places, handlePlaceClick }) => {
   const [searchValue, setSearchValue] = useState("");

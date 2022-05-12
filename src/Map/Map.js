@@ -1,16 +1,7 @@
-import ReactDOM from "react-dom";
-import React, { useRef, useEffect, useState, useCallback } from "react";
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-} from "firebase/auth";
-import "./Map.css";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import { Box } from "@mui/material";
 import Stack from "@mui/material/Stack";
 import {
-  addDoc,
   collection,
   doc,
   onSnapshot,
@@ -19,14 +10,15 @@ import {
 } from "firebase/firestore";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import "react-map-gl-geocoder/dist/mapbox-gl-geocoder.css";
 import Authorization from "../components/Authorization";
 import Database from "../components/Database";
-import { firestoreDB } from "../firebase";
 import FormMap from "../components/FormMap";
+import { firestoreDB } from "../firebase";
 import { fetchText } from "../services/index";
 import "./Map.css";
-import FormMarker from "../components/FormMarker";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 

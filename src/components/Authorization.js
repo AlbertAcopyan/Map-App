@@ -62,12 +62,6 @@ const Authorization = ({ userLogged }) => {
     setUser(null);
   };
 
-  // useEffect(() => {
-  //   localStorage.setItem("ID", user?.uid);
-  //   console.log(123456);
-  //   console.log(user);
-  // }, [user]);
-
   return (
     <Popup
       variant="text"
@@ -82,7 +76,7 @@ const Authorization = ({ userLogged }) => {
       <Box>
         {user ? (
           <>
-            <Box>logged in as </Box>
+            <Box>logged in </Box>
             <Button size="medium" onClick={handleLogout}>
               Logout
             </Button>
