@@ -1,7 +1,7 @@
 import { Box, Button, Input } from "@mui/material";
 import React, { useEffect, useState } from "react";
 
-const FormMap = ({ setPlaceName, saveNewPlace }) => {
+const FormMap = ({ setPlaceName, saveNewPlace, setPopupOpen }) => {
   const [name, setName] = useState("");
 
   useEffect(() => {
@@ -9,7 +9,7 @@ const FormMap = ({ setPlaceName, saveNewPlace }) => {
   }, [name]);
 
   return (
-    <Box>
+    <Box sx={{ textAlign: 'center' }}>
       <Input
         placeholder="Name"
         value={name}
@@ -17,7 +17,7 @@ const FormMap = ({ setPlaceName, saveNewPlace }) => {
         onChange={(e) => setName(e.target.value)}
       />
       <Button onClick={saveNewPlace}>Save</Button>
-      <Button>Cancel</Button>
+      <Button onClick={() => setPopupOpen(false)}>Close</Button>
     </Box>
   );
 };

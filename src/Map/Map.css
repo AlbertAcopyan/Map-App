@@ -9,3 +9,11 @@
 .mapboxgl-popup-content {
   width: 200px;
 }
+
+#geocoder {
+  position: absolute;
+  z-index: 111;
+  width: 100%;
+  left: 0%;
+  top: 10px;
+}

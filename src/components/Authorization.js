@@ -5,17 +5,27 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { auth } from "../firebase";
+import { auth, firestoreDB } from "../firebase";
 import Popup from "./Popup";
 
-const Authorization = ({ userLogged }) => {
+const Authorization = ({ userLogged, defaultView, satelliteView }) => {
   const [tab, setTab] = useState("login");
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [user, setUser] = useState(null);
   const [errorMessage, setErrorMessage] = useState(false);
   const [fullName, setFullName] = useState("");
+
+  useEffect(() => {
+    const userId = localStorage.getItem("ID");
+    setFullName(localStorage.getItem("NAME"));
+    if (userId) {
+      userLogged(true);
+      setUser(true);
+    }
+  }, []);
 
   const handleLoginTab = () => {
     setTab("login");
@@ -32,10 +42,13 @@ const Authorization = ({ userLogged }) => {
       localStorage.setItem("ID", user?.user.uid);
       localStorage.setItem("NAME", fullName);
       setErrorMessage(false);
+      await setDoc(doc(firestoreDB, "users", `${user?.user.uid}`), {
+        id: `${user?.user.uid}`,
+        fullName: fullName,
+      });
     } catch (error) {
       setErrorMessage(true);
     }
-    setFullName("");
     setLogin("");
     setPassword("");
   };
@@ -45,8 +58,15 @@ const Authorization = ({ userLogged }) => {
       const user = await signInWithEmailAndPassword(auth, login, password);
       setUser(user);
       localStorage.setItem("ID", user?.user.uid);
-      userLogged();
+      userLogged(true);
       setErrorMessage(false);
+      const dataSnap = await getDoc(
+        doc(firestoreDB, "users", `${user?.user.uid}`)
+      );
+      if (dataSnap.exists()) {
+        setFullName(dataSnap.data().fullName);
+        localStorage.setItem("NAME", dataSnap.data().fullName);
+      }
     } catch (error) {
       setErrorMessage(true);
     }
@@ -56,123 +76,144 @@ const Authorization = ({ userLogged }) => {
 
   const handleLogout = async () => {
     await signOut(auth);
-
     localStorage.removeItem("ID");
     localStorage.removeItem("NAME");
+    userLogged(false);
     setUser(null);
   };
 
   return (
-    <Popup
-      variant="text"
+    <Box
       sx={{
-        width: "40px",
-        heigth: "30px",
-        background: "#fff",
-        color: "black",
+        ":hover": {
+          background: "#b8baba",
+          borderRadius: "4px",
+        },
       }}
-      icon={<PersonIcon />}
     >
-      <Box>
-        {user ? (
-          <>
-            <Box>logged in </Box>
-            <Button size="medium" onClick={handleLogout}>
-              Logout
-            </Button>
-          </>
-        ) : (
-          <>
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-around",
-                minWidth: "350px",
-              }}
-            >
-              <Button sx={{ width: "100%" }} onClick={handleLoginTab}>
-                Login
-              </Button>
-              <Button sx={{ width: "100%" }} onClick={handleRegisterTab}>
-                Register
-              </Button>
-            </Box>
-            <Box
-              component="form"
-              sx={{
-                padding: "20px",
-              }}
-              autoComplete="off"
-            >
-              <CardContent
+      <Popup
+        variant="text"
+        sx={{
+          width: "40px",
+          heigth: "30px",
+          background: "#fff",
+          color: "black",
+        }}
+        icon={<PersonIcon />}
+      >
+        <Box>
+          {user ? (
+            <Box sx={{ textAlign: "end", minWidth: "240px" }}>
+              <Box sx={{ padding: "10px" }}>{fullName}</Box>
+              <Box
                 sx={{
-                  display: "flex",
-                  flexDirection: "column",
+                  padding: "20px 0",
+                  textAlign: "center",
+                  borderTop: "1px solid black",
+                  borderBottom: "1px solid black",
                 }}
               >
-                {tab === "register" ? (
+                <Box>Select a view:</Box>
+                <Button onClick={defaultView}>Default</Button>
+                <Button onClick={satelliteView}>Satellite</Button>
+              </Box>
+              <Button size="medium" onClick={handleLogout}>
+                Logout
+              </Button>
+            </Box>
+          ) : (
+            <>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-around",
+                  minWidth: "350px",
+                }}
+              >
+                <Button sx={{ width: "100%" }} onClick={handleLoginTab}>
+                  Login
+                </Button>
+                <Button sx={{ width: "100%" }} onClick={handleRegisterTab}>
+                  Register
+                </Button>
+              </Box>
+              <Box
+                component="form"
+                sx={{
+                  padding: "20px",
+                }}
+                autoComplete="off"
+              >
+                <CardContent
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
+                  {tab === "register" ? (
+                    <Input
+                      placeholder="Full name"
+                      sx={{
+                        height: "40px",
+                        padding: "10px",
+                        marginBottom: "10px",
+                      }}
+                      onChange={(e) => setFullName(e.target.value)}
+                      value={fullName}
+                    />
+                  ) : (
+                    ""
+                  )}
                   <Input
-                    placeholder="Full name"
+                    placeholder="Login"
                     sx={{
                       height: "40px",
                       padding: "10px",
                       marginBottom: "10px",
                     }}
-                    onChange={(e) => setFullName(e.target.value)}
-                    value={fullName}
+                    onChange={(e) => setLogin(e.target.value)}
+                    value={login}
                   />
+                  <Input
+                    placeholder="Password"
+                    type="password"
+                    sx={{
+                      height: "50px",
+                      padding: "10px",
+                    }}
+                    onChange={(e) => setPassword(e.target.value)}
+                    value={password}
+                  />
+                </CardContent>
+                <CardActions
+                  sx={{
+                    justifyContent: "center",
+                  }}
+                >
+                  {tab === "login" ? (
+                    <Button size="medium" onClick={handleLogin}>
+                      Login
+                    </Button>
+                  ) : (
+                    <Button size="medium" onClick={handleRegister}>
+                      Register
+                    </Button>
+                  )}
+                </CardActions>
+
+                {errorMessage ? (
+                  <Box sx={{ display: "flex", justifyContent: "center" }}>
+                    Something went wrong!
+                  </Box>
                 ) : (
                   ""
                 )}
-                <Input
-                  placeholder="Login"
-                  sx={{
-                    height: "40px",
-                    padding: "10px",
-                    marginBottom: "10px",
-                  }}
-                  onChange={(e) => setLogin(e.target.value)}
-                  value={login}
-                />
-                <Input
-                  placeholder="Password"
-                  type="password"
-                  sx={{
-                    height: "50px",
-                    padding: "10px",
-                  }}
-                  onChange={(e) => setPassword(e.target.value)}
-                  value={password}
-                />
-              </CardContent>
-              <CardActions
-                sx={{
-                  justifyContent: "center",
-                }}
-              >
-                {tab === "login" ? (
-                  <Button size="medium" onClick={handleLogin}>
-                    Login
-                  </Button>
-                ) : (
-                  <Button size="medium" onClick={handleRegister}>
-                    Register
-                  </Button>
-                )}
-              </CardActions>
-
-              {errorMessage ? (
-                <Box sx={{ display: "flex", justifyContent: "center" }}>
-                  Something went wrong!
-                </Box>
-              ) : (
-                ""
-              )}
-            </Box>
-          </>
-        )}
-      </Box>
-    </Popup>
+              </Box>
+            </>
+          )}
+        </Box>
+      </Popup>
+    </Box>
   );
 };
 
