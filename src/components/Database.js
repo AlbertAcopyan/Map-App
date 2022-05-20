@@ -1,35 +1,31 @@
-import { styled } from "@material-ui/core";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MenuIcon from "@mui/icons-material/Menu";
-import { Autocomplete, Box, Button, Input, TextField } from "@mui/material";
+import { Box, Button, Input } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { deleteDoc, doc, updateDoc } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import { firestoreDB } from "../firebase";
 import { fetchPlaces, fetchText } from "../services";
+import AutocompleteInput from "./AutocompleteInput";
 import Popup from "./Popup";
 
-const StyledAutocomplete = styled(Autocomplete)({
-  "& .MuiAutocomplete-inputRoot": {
-    padding: 6,
-  },
-});
+export const PlacesContext = React.createContext();
 
-const Database = ({ places, handlePlaceClick, editPlace }) => {
+const Database = ({ places, handlePlaceClick, logged }) => {
   const [searchValue, setSearchValue] = useState("");
   const [selectionModel, setSelectionModel] = useState([]);
   const [placesArray, setPlacesArray] = useState([]);
   const [columns, setColumns] = useState([]);
   const [userId, setUserId] = useState(null);
-  const placeAddress = useRef(null);
-  const addressId = useRef(null);
+  const selectedPlaceAddress = useRef(null);
+  const selectedAddressId = useRef(null);
   const lngCoord = useRef(null);
   const latCoord = useRef(null);
 
   useEffect(() => {
     const userIdLocal = localStorage.getItem("ID");
     setUserId(userIdLocal);
-  });
+  }, [logged]);
 
   useEffect(() => {
     setColumns([
@@ -38,7 +34,15 @@ const Database = ({ places, handlePlaceClick, editPlace }) => {
         field: "address",
         headerName: "Address",
         width: 200,
-        renderCell: (params) => renderAutocomplete(placesArray, params),
+        renderCell: (params) => (
+          <PlacesContext.Provider value={placesArray}>
+            <AutocompleteInput
+              params={params}
+              onSelectPlace={onSelectPlace}
+              handleChangePlace={handleChangePlace}
+            />
+          </PlacesContext.Provider>
+        ),
       },
       {
         field: "coordinates",
@@ -48,27 +52,6 @@ const Database = ({ places, handlePlaceClick, editPlace }) => {
       },
     ]);
   }, [placesArray]);
-
-  const renderAutocomplete = (arr, params) => {
-    return (
-      <StyledAutocomplete
-        id="autocompleteInput"
-        options={arr}
-        sx={{
-          width: 200,
-          height: 50,
-          position: "absolute",
-          right: "170px",
-        }}
-        onChange={onSelectPlace}
-        value={params.value}
-        isOptionEqualToValue={(option, value) => option.id === value.id}
-        renderInput={(params) => (
-          <TextField {...params} onKeyDown={handleChangePlace} />
-        )}
-      />
-    );
-  };
 
   const searchPlaces = places?.filter((place) => {
     if (place.uid === userId) {
@@ -84,7 +67,7 @@ const Database = ({ places, handlePlaceClick, editPlace }) => {
   });
 
   const deleteRow = async () => {
-    await selectionModel.map((elem) => {
+    selectionModel.map(async (elem) => {
       deleteDoc(doc(firestoreDB, "places", elem));
     });
   };
@@ -100,14 +83,14 @@ const Database = ({ places, handlePlaceClick, editPlace }) => {
             return response.json();
           })
           .then((data) => {
-            placeAddress.current = data.features[0]?.place_name;
+            selectedPlaceAddress.current = data.features[0]?.place_name;
           })
           .then(() => {
             updateDoc(doc(firestoreDB, "places", params.id), {
               coordinates: event.target.value,
               lng: lngCoord.current,
               lat: latCoord.current,
-              address: placeAddress.current,
+              address: selectedPlaceAddress.current,
             });
           });
       } else {
@@ -120,40 +103,38 @@ const Database = ({ places, handlePlaceClick, editPlace }) => {
     }
   };
 
+  const handleChangePlace = (e) => {
+    e.stopPropagation();
+    let arr = new Set([]);
+    fetchPlaces(e.target.value)
+      .then((response) => {
+        return response.json();
+      })
+      .then((data) => {
+        data?.features?.forEach((item) => arr.add(item.place_name));
+        setPlacesArray([...arr]);
+      });
+  };
+
   const onSelectPlace = (_, values) => {
     fetchPlaces(values)
       .then((response) => {
         return response.json();
       })
       .then((data) => {
+        // try use context
         lngCoord.current = data?.features?.[0].center[0];
         latCoord.current = data?.features?.[0].center[1];
       })
       .then(() => {
-        updateDoc(doc(firestoreDB, "places", addressId.current), {
+        updateDoc(doc(firestoreDB, "places", selectedAddressId.current), {
           coordinates: [lngCoord.current, latCoord.current],
           lng: lngCoord.current,
           lat: latCoord.current,
           address: values,
         });
       });
-      editPlace()
     setPlacesArray([]);
-  };
-
-  const handleChangePlace = (e) => {
-    e.stopPropagation();
-    let arr = [];
-    fetchPlaces(e.target.value)
-      .then((response) => {
-        return response.json();
-      })
-      .then((data) => {
-        data?.features?.forEach((item) =>
-          !arr.includes(item.place_name) ? arr.push(item.place_name) : ""
-        );
-        setPlacesArray(arr);
-      });
   };
 
   return (
@@ -191,8 +172,8 @@ const Database = ({ places, handlePlaceClick, editPlace }) => {
             checkboxSelection
             disableSelectionOnClick={true}
             hideFooterSelectedRowCount={true}
-            onRowClick={(e) => handlePlaceClick(e)}
-            onCellClick={(e) => (addressId.current = e.id)}
+            onRowClick={handlePlaceClick}
+            onCellClick={(e) => (selectedAddressId.current = e.id)}
             onSelectionModelChange={(newSelectionModel) => {
               setSelectionModel(newSelectionModel);
             }}

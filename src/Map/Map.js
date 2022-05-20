@@ -1,5 +1,5 @@
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
-import { Autocomplete, Box, TextField } from "@mui/material";
+import { Box } from "@mui/material";
 import Stack from "@mui/material/Stack";
 import {
   collection,
@@ -17,6 +17,7 @@ import Authorization from "../components/Authorization";
 import Database from "../components/Database";
 import FormMap from "../components/FormMap";
 import { firestoreDB } from "../firebase";
+import { defaultView, satelliteView } from "../helpers/constants";
 import { fetchText } from "../services/index";
 import "./Map.css";
 
@@ -32,7 +33,6 @@ const Map = () => {
   const [userId, setUserId] = useState(null);
   const [logged, setLogged] = useState(false);
   const [popupOpen, setPopupOpen] = useState(true);
-  const [editedPlace, setEditedPlace] = useState(false);
   const [currentMarkers, setCurrentMarkers] = useState([]);
   const placeName = useRef(null);
   const placeAddress = useRef(null);
@@ -47,19 +47,7 @@ const Map = () => {
     placeName.current = name;
   };
 
-  const editPlace = () => {
-    setEditedPlace(!editedPlace)
-  }
-
   const saveNewPlace = useCallback(async () => {
-    console.log(
-      "coord:",
-      placeCoordinates.current,
-      "address:",
-      placeAddress.current,
-      "name:",
-      placeName.current
-    );
     setPopupOpen(false);
     if (
       placeCoordinates.current &&
@@ -116,13 +104,54 @@ const Map = () => {
     [saveNewPlace]
   );
 
-  const defaultView = () => {
-    map.current.setStyle("mapbox://styles/mapbox/streets-v11");
+  const handlePlaceClick = (e) => {
+    if (!map.current) return;
+    map.current.flyTo({
+      center: [e.row.lng, e.row.lat],
+      essential: true,
+      zoom: 9,
+    });
   };
 
-  const satelliteView = () => {
-    map.current.setStyle("mapbox://styles/mapbox/satellite-v9");
+  const onDragEnd = async (marker, place) => {
+    const lngLat = marker.getLngLat();
+    const newAddress = fetchText(lngLat.lng, lngLat.lat)
+      .then((response) => {
+        return response.json();
+      })
+      .then((data) => {
+        return data.features[0]?.place_name;
+      });
+    try {
+      await updateDoc(doc(firestoreDB, "places", place.id), {
+        coordinates: `${lngLat.lng}, ${lngLat.lat}`,
+        lat: lngLat.lat,
+        lng: lngLat.lng,
+        address: await newAddress,
+      });
+    } catch (e) {
+      console.error("Error adding document: ", e);
+    }
   };
+
+  useEffect(() => {
+    for (let i = 0; i <= currentMarkers.length; i++) {
+      currentMarkers[0]?.[0]?.remove();
+    }
+    places?.forEach((place) => {
+      if (userId && userId === place.uid && logged) {
+        const marker = new mapboxgl.Marker({ draggable: true })
+          .setLngLat([place.lng, place.lat])
+          .addTo(map.current);
+        setCurrentMarkers([...currentMarkers, marker._map?._markers]);
+        marker.on("dragend", () => onDragEnd(marker, place));
+      } else if (!logged) {
+        for (let i = 0; i <= currentMarkers.length; i++) {
+          currentMarkers[0]?.[0]?.remove();
+        }
+      }
+    });
+  }, [places, userId, logged]);
 
   useEffect(() => {
     if (map.current) return;
@@ -138,20 +167,15 @@ const Map = () => {
       zoom: 9,
     });
     map.current.addControl(geocoder);
+    map.current.on("move", () => {
+      setLng(map.current.getCenter().lng.toFixed(4));
+      setLat(map.current.getCenter().lat.toFixed(4));
+      setZoom(map.current.getZoom().toFixed(2));
+    });
+    onSnapshot(collection(firestoreDB, "places"), (snapshot) =>
+      setPlaces(snapshot.docs.map((doc) => doc.data()))
+    );
   }, []);
-
-  useEffect(
-    () =>
-      onSnapshot(collection(firestoreDB, "places"), (snapshot) =>
-        setPlaces(snapshot.docs.map((doc) => doc.data()))
-      ),
-    []
-  );
-
-  useEffect(() => {
-    const userIdLocal = localStorage.getItem("ID");
-    setUserId(userIdLocal);
-  }, [logged]);
 
   useEffect(() => {
     map.current.off("click");
@@ -163,73 +187,6 @@ const Map = () => {
       popUpRef.current.remove();
     }
   }, [popupOpen]);
-
-  useEffect(() => {
-    for (let i = 0; i <= currentMarkers.length; i++) {
-      currentMarkers[0]?.[0]?.remove();
-    }
-    places?.forEach((place) => {
-      if (userId && userId === place.uid && logged) {
-        const marker = new mapboxgl.Marker({ draggable: true })
-          .setLngLat([place.lng, place.lat])
-          .addTo(map.current);
-        setCurrentMarkers([...currentMarkers, marker._map?._markers]);
-
-        const onDragEnd = async () => {
-          const lngLat = marker.getLngLat();
-          const newAddress = fetchText(lngLat.lng, lngLat.lat)
-            .then((response) => {
-              return response.json();
-            })
-            .then((data) => {
-              return data.features[0]?.place_name;
-            });
-          try {
-            await updateDoc(doc(firestoreDB, "places", place.id), {
-              coordinates: `${lngLat.lng}, ${lngLat.lat}`,
-              lat: lngLat.lat,
-              lng: lngLat.lng,
-              address: await newAddress,
-            });
-          } catch (e) {
-            console.error("Error adding document: ", e);
-          }
-        };
-
-        marker.on("dragend", onDragEnd);
-      } else if (!logged) {
-        for (let i = 0; i <= currentMarkers.length; i++) {
-          currentMarkers[0]?.[0]?.remove();
-        }
-      }
-    });
-  }, [places, userId, logged, editPlace]);
-
-  useEffect(() => {
-    if (!map.current) return;
-    map.current.on("move", () => {
-      setLng(map.current.getCenter().lng.toFixed(4));
-      setLat(map.current.getCenter().lat.toFixed(4));
-      setZoom(map.current.getZoom().toFixed(2));
-    });
-  }, []);
-
-  const handlePlaceClick = (e) => {
-    if (!map.current) return;
-    map.current.flyTo({
-      center: [e.row.lng, e.row.lat],
-      essential: true,
-      zoom: 9,
-    });
-  };
-
-  const editGeocode = () => {
-    const geocoder = new MapboxGeocoder({
-      accessToken: mapboxgl.accessToken,
-      mapboxgl: mapboxgl,
-    });
-   
-  };
 
   return (
     <Box>
@@ -248,13 +205,14 @@ const Map = () => {
         <Database
           places={places}
           handlePlaceClick={handlePlaceClick}
-          editPlace={editPlace}
+          logged={logged}
         />
         <Authorization
           userLogged={userLogged}
-          defaultView={defaultView}
-          satelliteView={satelliteView}
+          defaultView={() => defaultView(map.current)}
+          satelliteView={() => satelliteView(map.current)}
           setPlaces={setPlaces}
+          setUserId={setUserId}
         />
       </Stack>
     </Box>

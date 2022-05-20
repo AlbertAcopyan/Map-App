@@ -1,20 +1,22 @@
 import { Box, Button, Input } from "@mui/material";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 
 const FormMap = ({ setPlaceName, saveNewPlace, setPopupOpen }) => {
   const [name, setName] = useState("");
 
-  useEffect(() => {
+  const handleNameChange = useCallback((e) => {
+    const name = e.target.value;
+    setName(name);
     setPlaceName(name);
-  }, [name]);
+  }, []);
 
   return (
-    <Box sx={{ textAlign: 'center' }}>
+    <Box sx={{ textAlign: "center" }}>
       <Input
         placeholder="Name"
         value={name}
         sx={{ marginBottom: "10px" }}
-        onChange={(e) => setName(e.target.value)}
+        onChange={handleNameChange}
       />
       <Button onClick={saveNewPlace}>Save</Button>
       <Button onClick={() => setPopupOpen(false)}>Close</Button>

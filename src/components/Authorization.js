@@ -3,27 +3,34 @@ import { Box, Button, CardActions, CardContent, Input } from "@mui/material";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signOut,
+  signOut
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { auth, firestoreDB } from "../firebase";
 import Popup from "./Popup";
 
-const Authorization = ({ userLogged, defaultView, satelliteView }) => {
+const Authorization = ({
+  userLogged,
+  defaultView,
+  satelliteView,
+  setUserId,
+}) => {
   const [tab, setTab] = useState("login");
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
-  const [user, setUser] = useState(null);
-  const [errorMessage, setErrorMessage] = useState(false);
   const [fullName, setFullName] = useState("");
+  const [user, setUser] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => {
     const userId = localStorage.getItem("ID");
-    setFullName(localStorage.getItem("NAME"));
+    const fullNameLocal = localStorage.getItem("NAME");
+    setFullName(fullNameLocal);
     if (userId) {
       userLogged(true);
-      setUser(true);
+      setUser(fullNameLocal);
+      setUserId(userId);
     }
   }, []);
 
@@ -41,13 +48,13 @@ const Authorization = ({ userLogged, defaultView, satelliteView }) => {
       setUser(user);
       localStorage.setItem("ID", user?.user.uid);
       localStorage.setItem("NAME", fullName);
-      setErrorMessage(false);
+      setErrorMessage(null);
       await setDoc(doc(firestoreDB, "users", `${user?.user.uid}`), {
         id: `${user?.user.uid}`,
         fullName: fullName,
       });
     } catch (error) {
-      setErrorMessage(true);
+      setErrorMessage("Cannot register");
     }
     setLogin("");
     setPassword("");
@@ -59,7 +66,7 @@ const Authorization = ({ userLogged, defaultView, satelliteView }) => {
       setUser(user);
       localStorage.setItem("ID", user?.user.uid);
       userLogged(true);
-      setErrorMessage(false);
+      setErrorMessage(null);
       const dataSnap = await getDoc(
         doc(firestoreDB, "users", `${user?.user.uid}`)
       );
@@ -68,7 +75,8 @@ const Authorization = ({ userLogged, defaultView, satelliteView }) => {
         localStorage.setItem("NAME", dataSnap.data().fullName);
       }
     } catch (error) {
-      setErrorMessage(true);
+      console.log("ERROR", error);
+      setErrorMessage("Invalid login/password");
     }
     setLogin("");
     setPassword("");
@@ -150,7 +158,7 @@ const Authorization = ({ userLogged, defaultView, satelliteView }) => {
                     flexDirection: "column",
                   }}
                 >
-                  {tab === "register" ? (
+                  {tab === "register" && (
                     <Input
                       placeholder="Full name"
                       sx={{
@@ -161,8 +169,6 @@ const Authorization = ({ userLogged, defaultView, satelliteView }) => {
                       onChange={(e) => setFullName(e.target.value)}
                       value={fullName}
                     />
-                  ) : (
-                    ""
                   )}
                   <Input
                     placeholder="Login"
@@ -201,12 +207,10 @@ const Authorization = ({ userLogged, defaultView, satelliteView }) => {
                   )}
                 </CardActions>
 
-                {errorMessage ? (
+                {errorMessage && (
                   <Box sx={{ display: "flex", justifyContent: "center" }}>
-                    Something went wrong!
+                    {errorMessage}
                   </Box>
-                ) : (
-                  ""
                 )}
               </Box>
             </>
